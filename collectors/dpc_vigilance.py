@@ -47,7 +47,7 @@ def collect(day: date):
 
         record = {
             "bulletin_date": day.isoformat(),
-            "event": child_text(info, "event"),
+            "precipitation_level": child_text(info, "event"),
             "severity": child_text(info, "severity"),
             "certainty": child_text(info, "certainty"),
             "onset": child_text(info, "onset"),
@@ -85,7 +85,7 @@ def main():
         print()
         print(
             f"{record['onset']} | "
-            f"{record['event']} | "
+            f"{record['precipitation_level']} | "
             f"{len(record['areas'])} zone"
         )
 
