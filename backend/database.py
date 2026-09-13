@@ -61,6 +61,36 @@ def init_db():
         )
         """)
 
+        # EVIDENZE DEGLI EVENTI OSSERVATI
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS event_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            source_name TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            published_at TEXT,
+            observed_time_text TEXT,
+            evidence TEXT NOT NULL,
+            reliability TEXT NOT NULL CHECK (
+                reliability IN (
+                    'primary',
+                    'instrumental',
+                    'documented_media',
+                    'lead'
+                )
+            ),
+            collected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(event_id, source_url),
+            FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
+        )
+        """)
+
+        conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_evidence_event
+        ON event_evidence(event_id)
+        """)
+
         # ALERT GENERATI DA NOWCAST
         conn.execute("""
         CREATE TABLE IF NOT EXISTS nowcast_alerts (
