@@ -19,6 +19,9 @@ def init_db():
             source_name TEXT NOT NULL,
             source_url TEXT,
             evidence TEXT,
+            verification_status TEXT DEFAULT 'reported',
+            time_verified INTEGER DEFAULT 0,
+            verification_notes TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """)
