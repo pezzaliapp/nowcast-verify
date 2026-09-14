@@ -133,6 +133,17 @@ def main() -> int:
         ["--only-pending"],
     )
 
+    report_path = f"reports/{args.to_date}.md"
+    run_module(
+        "backend.report",
+        [
+            "--date", args.to_date,
+            "--output", report_path,
+        ],
+    )
+
+    print()
+    print(f"Report: {report_path}")
     print()
     print("=" * 68)
     print("RACCOLTA COMPLETATA")
