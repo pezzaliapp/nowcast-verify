@@ -103,13 +103,46 @@ def trova(conn, id_evento):
     ).fetchone()
 
 
+# UN POSTO SI CHIAMA COL SUO NOME.
+#
+# La prima versione accettava solo `--evento 12`. Quel numero e' una
+# chiave di database: non lo sa nessuno a memoria, va cercato ogni volta
+# con --elenca e ricopiato a mano, e ricopiare un numero fra due comandi
+# e' il modo piu' banale di approvare l'ora sull'evento sbagliato.
+#
+# Adesso si puo' dire «Forte dei Marmi». Se il nome e' ambiguo il comando
+# NON sceglie per conto suo: mostra i candidati e si ferma. Indovinare
+# quale intendesse l'utente, qui, vorrebbe dire scrivere un orario
+# verificato sulla riga di un altro comune.
+def trova_per_nome(conn, pezzo, giorno=None):
+    sql = ("SELECT * FROM events WHERE verification_status = 'verified' "
+           "AND lower(location) LIKE lower(?)")
+    parametri = [f"%{pezzo}%"]
+    if giorno:
+        sql += " AND event_date = ?"
+        parametri.append(giorno)
+    return conn.execute(sql + " ORDER BY event_date, id", parametri).fetchall()
+
+
+def riga_breve(r):
+    luogo = r["location"] + (f" ({r['province']})" if r["province"] else "")
+    ora = r["event_time"] or "--:--"
+    stato = "ora verificata" if r["time_verified"] else "ora da approvare"
+    return f"  [{r['id']:>4}] {r['event_date']} {ora}  {r['event_type']:<10} {luogo}  — {stato}"
+
+
 def main():
     p = argparse.ArgumentParser(
         description=("Approva l'orario osservato di un evento gia' "
                      "verificato, dietro fonte citata."))
     p.add_argument("--elenca", action="store_true",
                    help="Mostra gli eventi approvati e quali hanno l'ora.")
-    p.add_argument("--evento", type=int, help="Identificativo dell'evento.")
+    p.add_argument("--evento", type=int,
+                   help="Identificativo dell'evento. In alternativa: --luogo.")
+    p.add_argument("--luogo",
+                   help="Nome del comune, anche parziale. Se ne trova piu' "
+                        "di uno si ferma e te li mostra.")
+    p.add_argument("--data", help="Restringe --luogo a una data YYYY-MM-DD.")
     p.add_argument("--ora", help="Orario osservato, HH:MM (ora locale).")
     p.add_argument("--fonte", help="Chi lo dice. Per esteso.")
     p.add_argument("--url", help="Dove lo dice.")
@@ -132,7 +165,35 @@ def main():
             elenca(conn)
             return 0
 
-        mancano = [n for n, v in (("--evento", a.evento), ("--ora", a.ora),
+        # Prima si capisce DI CHE EVENTO si parla, poi si guarda se c'e'
+        # tutto il resto: dire «manca --fonte» a chi ha sbagliato il nome
+        # del comune manda a cercare la cosa sbagliata.
+        if a.luogo and a.evento:
+            print("ERRORE: o --evento o --luogo, non tutti e due.")
+            return 1
+
+        if a.luogo:
+            trovati = trova_per_nome(conn, a.luogo, a.data)
+            if not trovati:
+                print(f"Nessun evento approvato con «{a.luogo}» nel nome"
+                      + (f" il {a.data}" if a.data else "") + ".")
+                print("Per vedere quali ci sono: "
+                      "python3 -m approva_orario --elenca")
+                return 1
+            if len(trovati) > 1:
+                print(f"«{a.luogo}» corrisponde a {len(trovati)} eventi. "
+                      f"Non scelgo io: qui si scriverebbe un orario")
+                print("verificato sulla riga sbagliata.")
+                print()
+                for r in trovati:
+                    print(riga_breve(r))
+                print()
+                print("Restringi con --data, oppure indica --evento <numero>.")
+                return 1
+            a.evento = trovati[0]["id"]
+
+        mancano = [n for n, v in (("--evento o --luogo", a.evento),
+                                  ("--ora", a.ora),
                                   ("--fonte", a.fonte), ("--url", a.url),
                                   ("--prova", a.prova),
                                   ("--affidabilita", a.affidabilita))
