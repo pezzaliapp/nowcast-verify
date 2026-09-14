@@ -423,42 +423,41 @@ def evaluate_event(conn, event, nowcast_types):
         ),
     )
 
-    issued = parse_iso_datetime(
-        latest["issued_at"]
-    )
-
-    delta = event_utc - issued
-
-    delta_minutes = round(
-        delta.total_seconds() / 60,
-        1,
-    )
-
-    result["status"] = "confirmed"
-
-    result["latest_alert_id"] = (
-        latest["alert_id"]
-    )
-
-    result["latest_issued_at"] = (
-        latest["issued_at"]
-    )
-
-    result["latest_predicted_time"] = (
+    predicted = parse_iso_datetime(
         latest["predicted_time"]
     )
 
-    result["time_difference_minutes"] = (
-        delta_minutes
-    )
+    result["latest_alert_id"] = latest["alert_id"]
+    result["latest_issued_at"] = latest["issued_at"]
+    result["latest_predicted_time"] = latest["predicted_time"]
 
-    result["reason"] = (
-        "Evento verificato con orario confrontabile e alert "
-        "precedente dello stesso fenomeno e localita'. "
-        "La differenza temporale e' una misura osservata: "
-        "non viene ancora interpretata come anticipo corretto "
-        "o errato."
-    )
+    # Senza una finestra temporale predefinita non dichiariamo
+    # l'alert temporalmente confermato. Misuriamo soltanto lo
+    # scarto fra ETA prevista e ora osservata.
+    result["status"] = "compatible"
+
+    if predicted is not None:
+        delta = event_utc - predicted
+        result["time_difference_minutes"] = round(
+            delta.total_seconds() / 60, 1
+        )
+        result["reason"] = (
+            "Evento verificato con orario confrontabile e alert "
+            "precedente dello stesso fenomeno e localita'. "
+            "Lo scarto temporale e' calcolato rispetto all'ETA "
+            "prevista dall'alert (predicted_time), non rispetto "
+            "all'ora di emissione. Non essendo ancora definita "
+            "una finestra temporale di validita' a priori, "
+            "l'evento resta compatibile e non viene dichiarato "
+            "temporalmente confermato."
+        )
+    else:
+        result["reason"] = (
+            "Evento verificato con orario confrontabile e alert "
+            "precedente dello stesso fenomeno e localita', ma "
+            "l'ETA prevista non e' disponibile. Nessuna conferma "
+            "temporale viene assegnata."
+        )
 
     return result
 
