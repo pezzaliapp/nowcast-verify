@@ -46,7 +46,33 @@ from collectors.review_queue import classify, load_candidates
 ROOT = Path(__file__).resolve().parent
 
 REGISTRO_NOWCAST = Path("/opt/nowcast/dati/registro.jsonl")
-CARTELLA_PONTE = Path("/opt/nowcast/dati/verify")
+
+# DOVE SI SCRIVE, E PERCHE' NON PIU' DENTRO /opt/nowcast.
+#
+# Prima era /opt/nowcast/dati/verify. Sembrava il posto naturale ed era
+# una trappola: il rituale di aggiornamento del motore finisce con
+# `sudo chown -R nowcast:nowcast /opt/nowcast`, che e' ricorsivo e si
+# riprende quella cartella. Questo script gira come l'autore, non come il
+# servizio, quindi ogni aggiornamento gli toglieva il permesso di
+# scrivere — e glielo toglieva in silenzio: nella pagina compariva
+# «nessun report», che somiglia a «non e' successo niente».
+#
+# Fuori da /opt/nowcast il chown non arriva. La vecchia posizione resta
+# come ricaduta finche' esiste, cosi' chi non ha ancora spostato i file
+# non si ritrova il ponte muto.
+PONTE_FUORI = Path("/var/lib/nowcast-verify")
+PONTE_VECCHIA = Path("/opt/nowcast/dati/verify")
+
+
+def cartella_ponte() -> Path:
+    if PONTE_FUORI.is_dir():
+        return PONTE_FUORI
+    if PONTE_VECCHIA.is_dir():
+        return PONTE_VECCHIA
+    return PONTE_FUORI
+
+
+CARTELLA_PONTE = cartella_ponte()
 CANDIDATI = ROOT / "data" / "vvf_event_candidates.jsonl"
 REPORTS = ROOT / "reports"
 
